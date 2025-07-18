@@ -1,0 +1,1479 @@
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/include/exhaleDecl.h ###
+/* exhaleDecl.h - header file with declarations for exhale DLL ex-/import under Windows
+ * written by C. R. Helmrich, last modified in 2020 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _EXHALE_DECL_H_
+#define _EXHALE_DECL_H_
+
+#include <stdint.h> /* for (u)int8_t, (u)int16_t, (u)int32_t, (u)int64_t */
+#if !defined(_MSC_VER) || _MSC_VER >= 1800
+#include <stdbool.h>
+#endif
+
+#if defined (_WIN32) || defined (WIN32) || defined (_WIN64) || defined (WIN64)
+# ifdef EXHALE_DYN_LINK
+#  define EXHALE_DECL __declspec (dllexport)
+# else
+#  define EXHALE_DECL __declspec (dllimport)
+# endif
+#else
+# define EXHALE_DECL
+#endif
+
+#ifdef __cplusplus
+struct ExhaleEncAPI
+{
+  /* initializer */
+  virtual unsigned initEncoder (unsigned char* const audioConfigBuffer, uint32_t* const audioConfigBytes = nullptr) = 0;
+  /* lookahead encoder */
+  virtual unsigned encodeLookahead () = 0;
+  /* frame encoder */
+  virtual unsigned encodeFrame () = 0;
+  /* destructor */
+  virtual ~ExhaleEncAPI () { }
+};
+
+extern "C"
+{
+#else /* C, not C++ */
+struct ExhaleEncAPI; /* opaque type */
+typedef struct ExhaleEncAPI ExhaleEncAPI;
+#endif
+
+/* C constructor */
+EXHALE_DECL ExhaleEncAPI* exhaleCreate (int32_t* const, unsigned char* const, const unsigned, const unsigned,
+                                        const unsigned, const unsigned, const unsigned, const bool, const bool);
+/* C destructor */
+EXHALE_DECL unsigned exhaleDelete (ExhaleEncAPI*);
+
+/* C initializer */
+EXHALE_DECL unsigned exhaleInitEncoder (ExhaleEncAPI*, unsigned char* const, uint32_t* const);
+
+/* C lookahead encoder */
+EXHALE_DECL unsigned exhaleEncodeLookahead (ExhaleEncAPI*);
+
+/* C frame encoder */
+EXHALE_DECL unsigned exhaleEncodeFrame (ExhaleEncAPI*);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* _EXHALE_DECL_H_ */
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/include/version.h ###
+/* version.h - header file with major and minor library version numbers as characters
+ * written by C. R. Helmrich, last modified in 2023 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2024 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef EXHALELIB_VERSION_MAJOR
+# define EXHALELIB_VERSION_MAJOR "1"
+#endif
+#ifndef EXHALELIB_VERSION_MINOR
+# define EXHALELIB_VERSION_MINOR "2"
+#endif
+#ifndef EXHALELIB_VERSION_BUGFIX
+# define EXHALELIB_VERSION_BUGFIX ".1" // "RC" or ".0", ".1", ...
+#endif
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/app/exhaleAppPch.h ###
+/* exhaleAppPch.h - pre-compiled header file for source code of exhale application
+ * written by C. R. Helmrich, last modified in 2021 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _EXHALE_APP_PCH_H_
+#define _EXHALE_APP_PCH_H_
+
+#include <limits.h> // for .._MAX, .._MIN
+#include <math.h>   // for log, pow, sqrt
+#include <stdint.h> // for (u)int8_t, (u)int16_t, (u)int32_t, (u)int64_t
+#include <stdlib.h> // for abs, div, calloc, malloc, free, (__)max, (__)min, (s)rand
+#include <string.h> // for memcpy, memset
+#include <vector>   // for std::vector <>
+#if defined (_WIN32) || defined (WIN32) || defined (_WIN64) || defined (WIN64)
+# include <io.h>
+
+# define _CLOSE _close
+# define _READ  _read
+# define _SEEK  _lseeki64
+# define _WRITE _write
+#else // Linux, MacOS, Unix
+# include <unistd.h>
+
+# define _CLOSE ::close
+# define _READ  ::read
+# define _SEEK  ::lseek
+# define _WRITE ::write
+#endif
+
+#ifndef __max
+# define __max(a, b)           ((a) > (b) ? (a) : (b))
+#endif
+#ifndef __min
+# define __min(a, b)           ((a) < (b) ? (a) : (b))
+#endif
+#if !defined (fprintf_s) && !defined (__MINGW32__)
+# define fprintf_s             fprintf
+#endif
+#if !defined (fwprintf_s) && !defined (__MINGW32__)
+# define fwprintf_s            fwprintf
+#endif
+#ifndef MFREE
+# define MFREE(x)              if (x != nullptr) { free ((void*) x); x = nullptr; }
+#endif
+
+// public extrapolation function
+void eaExtrapolate (int32_t* const pcmBuffer, const uint16_t pcmOffset,
+                    const uint16_t frameSize, const uint16_t numChannels, const bool fadeIn = false);
+
+// public sampling rate function
+bool isSamplingRateSupported (const unsigned samplingRate);
+
+#endif // _EXHALE_APP_PCH_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/app/basicWavReader.h ###
+/* basicWavReader.h - header file for class with basic WAVE file reading capability
+ * written by C. R. Helmrich, last modified in 2024 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2024 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _BASIC_WAV_READER_H_
+#define _BASIC_WAV_READER_H_
+
+#include "exhaleAppPch.h"
+
+// constant data sizes & limits
+#define BWR_READ_FRACT           5 // 2^-READ_FRACT
+#define CHUNK_FORMAT_MAX        40
+#define CHUNK_FORMAT_SIZE       16
+#define CHUNK_HEADER_SIZE        8
+#define FILE_HEADER_SIZE        12
+#define MAX_VALUE_AUDIO24  8388607 // (1 << 23) - 1
+#define MIN_VALUE_AUDIO24 -8388608 // (1 << 23) *-1
+
+// WAVE data format definitions
+typedef enum WAV_TYPE : int16_t
+{
+  WAV_PCM = 0, // linear PCM
+  WAV_ADPCM,   // ADPCM
+  WAV_FLOAT    // IEEE float
+} WAV_TYPE;
+
+// data reader function pointer
+typedef unsigned (*ReadFunc) (const int, int32_t*, const unsigned, const unsigned, void*);
+
+// basic WAV audio reader class
+class BasicWavReader
+{
+private:
+
+  // member variables
+  char*    m_byteBuffer;
+  unsigned m_bytesRead;
+  int64_t  m_bytesRemaining;
+  int64_t  m_chunkLength;
+  int      m_fileHandle;
+  unsigned m_frameLimit;
+  ReadFunc m_readDataFunc;
+  int64_t  m_readOffset;
+  unsigned m_waveBitDepth;
+  unsigned m_waveBitRate;
+  unsigned m_waveChannels;
+  uint16_t m_waveChMpegMap;
+  WAV_TYPE m_waveDataType;
+  unsigned m_waveFrameRate;
+  unsigned m_waveFrameSize;
+  // private reader functions
+  bool     readRiffHeader ();
+  bool     readFormatChunk();
+  bool     readDataHeader ();
+  // private helper function
+  bool     seekToChunkTag (uint8_t* const buf, const uint32_t tagName);
+  // static reading functions
+  static unsigned readDataFloat16 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+  static unsigned readDataFloat32 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+  static unsigned readDataLnPcm08 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+  static unsigned readDataLnPcm16 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+  static unsigned readDataLnPcm24 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+  static unsigned readDataLnPcm32 (const int fileHandle, int32_t* frameBuf, const unsigned frameCount,
+                                   const unsigned chanCount, void* tempBuf);
+public:
+
+  // constructor
+  BasicWavReader (const int mpegChCfg) { m_fileHandle = -1; m_waveChMpegMap = (!mpegChCfg ? 0 : 1); reset (); }
+  // destructor
+  ~BasicWavReader() { if (m_byteBuffer != nullptr) free ((void*) m_byteBuffer); }
+  // public functions
+  int64_t  getDataBytesLeft () const { return m_bytesRemaining; }
+  int64_t  getDataBytesRead () const { return m_chunkLength; }
+  unsigned getBitDepth      () const { return m_waveBitDepth; }
+  unsigned getNumChannels   () const { return m_waveChannels; }
+  unsigned getSampleRate    () const { return m_waveFrameRate; }
+  unsigned open  (const int wavFileHandle, const uint16_t maxFrameRead, const int64_t fileLength = LLONG_MAX /*for stdin*/);
+  unsigned read  (int32_t* const frameBuf, const uint16_t frameCount);
+  void     reset ();
+}; // BasicWavReader
+
+#endif // _BASIC_WAV_READER_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/app/basicMP4Writer.h ###
+/* basicMP4Writer.h - header file for class with basic MPEG-4 file writing capability
+ * written by C. R. Helmrich, last modified in 2021 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _BASIC_MP4_WRITER_H_
+#define _BASIC_MP4_WRITER_H_
+
+#include "exhaleAppPch.h"
+
+// constant data sizes in bytes
+#define STAT_HEADER_SIZE   576
+#define STSX_BSIZE        0x10
+#define UDTA_BSIZE        0x61 // udta: 0 to turn off!
+#define ESDS_BSIZE  0x00, 0x36 // esds: 54 (+ m_ascSizeM5 later)
+#define MP4A_BSIZE  0x00, 0x5A // mp4a: 36 + ESDS_BSIZE
+#define STSD_BSIZE  0x00, 0x6A // mp4a: 16 + MP4A_BSIZE
+#define STBL_BSIZE  0x00, 0x92 // stbl: 8 + 32 + STSD_BSIZE (+ rem later)
+#define MINF_BSIZE  0x00, 0xCE // minf: 8 + 16 + 36 + STBL_BSIZE
+#define MDIA_BSIZE  0x01, 0x1A // mdia: 8 + 32 + 36 + MINF_BSIZE
+#define TRAK_BSIZE  0x01, 0xA2 // trak: 8 + 92 + 36 + MDIA_BSIZE
+#define MOOV_BSIZE  0x02, 0x2E // moov: 8 +108 + 24 + TRAK_BSIZE
+
+// basic MPEG-4 write-out class
+class BasicMP4Writer
+{
+private:
+
+  // member variables
+  unsigned m_ascSizeM5;  // ASC + UsacConfig byte-size - 5
+  int      m_fileHandle;
+  unsigned m_frameCount;
+  unsigned m_frameLength;
+  uint32_t m_mediaOffset;  // offset of first mdat payload
+  uint32_t m_mediaSize; // number of bytes of mdat content
+  unsigned m_preLength;   // encoding look-ahead, pre-roll
+  unsigned m_postLength; // decoding look-ahead, post-roll
+  unsigned m_rndAccPeriod;  // random-access (RA) interval
+  unsigned m_sampleRate;
+  uint8_t  m_staticHeader[STAT_HEADER_SIZE]; // fixed-size
+  std::vector <uint8_t> m_dynamicHeader; // variable-sized
+  std::vector <uint32_t> m_rndAccOffsets; // random access
+#ifndef NO_PREROLL_DATA
+  std::vector <uint8_t> m_ipfCfgOffsets; // IPF UsacConfig
+#endif
+
+  // helper function
+  void push32BitValue (const uint32_t value); // to header
+
+public:
+
+  // constructor
+  BasicMP4Writer () { m_fileHandle = -1;  reset (0, 0, 0, 0); }
+  // destructor
+#ifdef NO_PREROLL_DATA
+  ~BasicMP4Writer() { m_dynamicHeader.clear (); m_rndAccOffsets.clear (); }
+#else
+  ~BasicMP4Writer() { m_dynamicHeader.clear (); m_rndAccOffsets.clear (); m_ipfCfgOffsets.clear (); }
+#endif
+  // public functions
+  int addFrameAU (const uint8_t* byteBuf, const uint32_t byteCount);
+  int finishFile (const unsigned avgBitrate, const unsigned maxBitrate, const uint32_t audioLength,
+                  const uint32_t modifTime = 0, const uint8_t* ascBuf = nullptr);
+  unsigned getFrameCount () const { return m_frameCount; }
+  int initHeader (const uint32_t audioLength, const unsigned extraDelay);
+  unsigned open  (const int mp4FileHandle, const unsigned sampleRate,  const unsigned numChannels,
+                  const unsigned bitDepth, const unsigned frameLength, const unsigned pregapLength,
+                  const unsigned raPeriod, const uint8_t* ascBuf,      const unsigned ascSize,
+                  const uint32_t creatTime = 0, const char vbrQuality = 0);
+  void     reset (const unsigned frameLength, const unsigned pregapLength, const unsigned raPeriod, const unsigned sampleRate);
+#ifndef NO_PREROLL_DATA
+  int updateIPFs (const uint8_t* ascUcBuf, const uint32_t ascUcLength, const uint32_t ucOffset);
+#endif
+}; // BasicMP4Writer
+
+#endif // _BASIC_MP4_WRITER_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/app/loudnessEstim.h ###
+/* loudnessEstim.h - header file for class with ITU-R BS.1770-4 loudness level estimation
+ * written by C. R. Helmrich, last modified in 2020 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _LOUDNESS_ESTIM_H_
+#define _LOUDNESS_ESTIM_H_
+
+#include "exhaleAppPch.h"
+
+// constants, experimental macros
+#define LE_ACCURATE_CALC       1 // correct filter order, no 500-Hz pre-high-pass
+#define LE_THRESH_REL       0.1f // second stage, relative threshold 10dB below L
+#if LE_ACCURATE_CALC
+#define LE_THRESH_ABS (5.0f / 8388608.0f) // absolute gate threshold for -70 LUFS
+#define LE_LUFS_OFFSET -9.03125f // to get -3.01 LUFS for mono 997-Hz 0-dBFS sine
+#else
+#define LE_THRESH_ABS   (15.0f / 268435456.0f) // absolute threshold for -70 LUFS
+#define LE_LUFS_OFFSET  2.53125f // to get -3.01 LUFS for mono 997-Hz 0-dBFS sine
+#endif
+
+// ITU-R loudness estimator class
+class LoudnessEstimator
+{
+private:
+
+  // member variables
+#if LE_ACCURATE_CALC
+  const int64_t* m_filterCoeffs; // coefficients of IIR K-weighting filter kernel
+  int32_t  m_filterMemI[8][4]; // channel-wise preceding K-weighting filter input
+  int32_t  m_filterMemO[8][4]; // channel-wise previous K-weighting filter output
+#else
+  int32_t  m_filterMemoryI[8]; // channel-wise preceding K-weighting filter input
+  int32_t  m_filterMemoryO[8]; // channel-wise previous K-weighting filter output
+#endif
+  uint64_t m_powerValue[4][8]; // channel-wise power in each gating block quarter
+  float    m_gbNormFactor; // 64-sample normalization factor, 1/(4*m_gbHopSize64)
+#if LE_ACCURATE_CALC
+  int8_t   m_filterFactor; // sampling rate dependent K-weighting filter constant
+#else
+  uint8_t  m_filterFactor; // sampling rate dependent K-weighting filter constant
+#endif
+  uint8_t  m_gbHopLength64;  // number of 64-sample units in gating block quarter
+  uint8_t  m_gbHopSize64;  // hop-size between gating blocks, 25% of block length
+  uint8_t  m_inputChannels;
+  uint32_t m_inputMaxValue;
+  uint32_t m_inputPeakValue;
+  int32_t* m_inputPcmData;
+  std::vector <uint32_t> m_gbRmsValues; // sqrt of power average per gating block
+
+public:
+
+  // constructor
+  LoudnessEstimator (int32_t* const inputPcmData,       const unsigned bitDepth = 24,
+                     const unsigned sampleRate = 44100, const unsigned numChannels = 2);
+  // destructor
+  ~LoudnessEstimator () { reset (); }
+  // public functions
+  uint32_t addNewPcmData (const unsigned samplesPerChannel);
+  uint32_t getStatistics (const bool includeWarmUp = false);
+  void     reset () { m_gbHopLength64 = m_inputPeakValue = 0; m_gbRmsValues.clear (); memset (m_powerValue, 0, sizeof (m_powerValue)); }
+
+}; // LoudnessEstimator
+
+#endif // _LOUDNESS_ESTIM_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/linearPrediction.h ###
+/* linearPrediction.h - header file for class providing linear prediction capability
+ * written by C. R. Helmrich, last modified in 2020 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _LINEAR_PREDICTION_H_
+#define _LINEAR_PREDICTION_H_
+
+#include "exhaleLibPch.h"
+
+// constants, experimental macros
+#define LP_EPS                  1
+#define LP_SHIFT               15
+#define LP_DEPTH               (1 + LP_SHIFT - MAX_PREDICTION_ORDER)
+#define LP_OFFSET              (1 << (LP_SHIFT - 1))
+
+// linear predictive filter class
+class LinearPredictor
+{
+private:
+
+  // temporary buffer
+  int64_t m_tempBuf[2 * MAX_PREDICTION_ORDER];
+
+public:
+
+  // constructor
+  LinearPredictor ();
+  // destructor
+  ~LinearPredictor () { }
+  // public functions
+  uint32_t calcParCorCoeffs (const int32_t* const anaSignal, const uint16_t nAnaSamples, const uint16_t nCoeffs,
+                             short* const parCorCoeffs); // returns 256 - 256 / prediction gain per filter order, or 0
+  uint8_t  calcOptTnsCoeffs (short* const parCorCoeffs, int8_t* const quantCoeffs, bool* const lowCoeffRes,
+                             const uint16_t maxOrder, const uint8_t predGain, const uint8_t tonality = 0,
+                             const uint16_t parCorCoeffBitDepth = 10); // returns optimized filter order for TNS
+  unsigned lpToParCorCoeffs (short* const lpCoeffs, const uint16_t nCoeffs, short* const parCorCoeffs,
+                             const uint16_t parCorCoeffBitDepth = 10);
+  unsigned parCorToLpCoeffs (const short* const parCorCoeffs,  const uint16_t nCoeffs, short* const lpCoeffs,
+                             const uint16_t parCorCoeffBitDepth = 10);
+  unsigned quantTnsToLpCoeffs(const int8_t* const quantCoeffs, const uint16_t nCoeffs, const bool lowCoeffRes,
+                             short* const parCorCoeffs, short* const lpCoeffs);
+  bool  similarParCorCoeffs (const short* const parCorCoeffs1, const short* const parCorCoeffs2, const uint16_t nCoeffs,
+                             const uint16_t parCorCoeffBitDepth = 10);
+}; // LinearPredictor
+
+#endif // _LINEAR_PREDICTION_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/bitStreamWriter.h ###
+/* bitStreamWriter.h - header file for class with basic bit-stream writing capability
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _BIT_STREAM_WRITER_H_
+#define _BIT_STREAM_WRITER_H_
+
+#include "exhaleLibPch.h"
+#include "entropyCoding.h"
+
+// constants, experimental macros
+#define CORE_MODE_FD            0
+#define SFB_PER_PRED_BAND       2
+
+// output bit-stream writer class
+class BitStreamWriter
+{
+private:
+
+  // member variables
+  OutputStream m_auBitStream; // access unit bit-stream to write
+  uint64_t     m_auByteCount;
+  uint8_t      m_numSwbShort; // max. SFB count in short windows
+  uint8_t*     m_uCharBuffer; // temporary buffer for ungrouping
+#ifndef NO_PREROLL_DATA
+  uint8_t      m_usacConfig[20]; // buffer for UsacConfig in IPF
+  uint16_t     m_usacConfigLen;
+#endif
+#if !RESTRICT_TO_AAC
+  uint8_t      m_usacIpfState[6];
+#endif
+  // helper functions
+  void     writeByteAlignment (); // write 0s for byte alignment
+  unsigned writeChannelWiseIcsInfo (const IcsInfo& icsInfo);
+  unsigned writeChannelWiseSbrData (const int32_t* const sbrDataCh0, const int32_t* const sbrDataCh1,
+                                    const bool indepFlag = false);
+  unsigned writeChannelWiseTnsData (const TnsData& tnsData, const bool eightShorts);
+  unsigned writeFDChannelStream    (const CoreCoderData& elData, EntropyCoder& entrCoder, const unsigned ch,
+                                    const int32_t* const mdctSignal, const uint8_t* const mdctQuantMag,
+#if !RESTRICT_TO_AAC
+                                    const bool timeWarping, const bool noiseFilling, uint8_t* ipfAuState,
+#endif
+                                    const bool indepFlag = false);
+  unsigned writeStereoCoreToolInfo (const CoreCoderData& elData, EntropyCoder& entrCoder,
+#if !RESTRICT_TO_AAC
+                                    const bool timeWarping, bool* const commonTnsFlag,
+#endif
+                                    const bool indepFlag = false);
+
+public:
+
+  // constructor
+  BitStreamWriter () { m_auBitStream.reset (); m_auByteCount = m_numSwbShort = 0; m_uCharBuffer = nullptr;
+#ifndef NO_PREROLL_DATA
+                       memset (m_usacConfig, 0, 20); m_usacConfigLen = 0; memset (m_usacIpfState, 0, 4);
+#endif
+    }
+  // destructor
+  ~BitStreamWriter() { m_auBitStream.reset (); }
+  // public functions
+  unsigned createAudioConfig (const char samplingFrequencyIndex,  const bool shortFrameLength,
+                              const uint8_t chConfigurationIndex, const uint8_t numElements,
+                              const ELEM_TYPE* const elementType, const uint32_t loudnessInfo,
+#if !RESTRICT_TO_AAC
+                              const uint8_t* const twAndTcxInfo,  const bool* const noiseFilling,
+#endif
+                              const uint8_t sbrRatioShiftValue,   unsigned char* const audioConfig);
+  unsigned createAudioFrame  (CoreCoderData** const elementData,  EntropyCoder* const entropyCoder,
+                              int32_t** const mdctSignals,        uint8_t** const mdctQuantMag,
+                              const bool usacIndependencyFlag,    const uint8_t numElements,
+                              const uint8_t numSwbShort,          uint8_t* const tempBuffer,
+#if !RESTRICT_TO_AAC
+                              uint8_t* const twAndTcxInfo,        const bool* const noiseFilling,
+                              const uint32_t frameCount,          const uint32_t indepPeriod,  uint32_t* rate,
+#endif
+                              const uint8_t sbrRatioShiftValue,   int32_t** const sbrInfoAndData,
+                              unsigned char* const accessUnit,    const unsigned nSamplesInFrame);
+}; // BitStreamWriter
+
+#endif // _BIT_STREAM_WRITER_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/tempAnalysis.h ###
+/* tempAnalysis.h - header file for class providing temporal analysis of PCM signals
+ * written by C. R. Helmrich, last modified in 2021 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _TEMP_ANALYSIS_H_
+#define _TEMP_ANALYSIS_H_
+
+#include "exhaleLibPch.h"
+
+// constants, experimental macros
+#define TA_EPS               4096
+
+// temporal signal analysis class
+class TempAnalyzer
+{
+private:
+
+  // member variables
+  unsigned m_avgAbsHpPrev[USAC_MAX_NUM_CHANNELS];
+  unsigned m_maxAbsHpPrev[USAC_MAX_NUM_CHANNELS];
+  int32_t  m_maxHfLevPrev[USAC_MAX_NUM_CHANNELS];
+  unsigned m_maxIdxHpPrev[USAC_MAX_NUM_CHANNELS];
+  unsigned m_pitchLagPrev[USAC_MAX_NUM_CHANNELS];
+  int64_t  m_filtSampPrev[USAC_MAX_NUM_CHANNELS][6]; // for SBR subband calculation (NOTE: only approximate)
+  uint32_t m_tempAnaStats[USAC_MAX_NUM_CHANNELS];
+  int16_t  m_transientLoc[USAC_MAX_NUM_CHANNELS];
+
+public:
+
+  // constructor
+  TempAnalyzer ();
+  // destructor
+  ~TempAnalyzer () { }
+  // public functions
+  void getTempAnalysisStats (uint32_t avgTempAnaStats[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  void getTransientAndPitch (int16_t transIdxAndPitch[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  uint8_t stereoPreAnalysis (const int32_t* const timeSignals[2], const uint8_t specFlatness[2], const unsigned nSamplesInSig);
+  unsigned temporalAnalysis (const int32_t* const timeSignals[USAC_MAX_NUM_CHANNELS], const unsigned nChannels,
+                             const int nSamplesInFrame, const unsigned lookaheadOffset, const uint8_t sbrShift,
+                             int32_t* const lrCoreTimeSignals[USAC_MAX_NUM_CHANNELS] = nullptr, // if using SBR
+                             const unsigned lfeChannelIndex = USAC_MAX_NUM_CHANNELS); // to skip an LFE channel
+}; // TempAnalyzer
+
+#endif // _TEMP_ANALYSIS_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/quantization.h ###
+/* quantization.h - header file for class with nonuniform quantization functionality
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _QUANTIZATION_H_
+#define _QUANTIZATION_H_
+
+#include "exhaleLibPch.h"
+#include "entropyCoding.h"
+
+// constants, experimental macros
+#define FOUR_LOG102   13.28771238 // 4 / log10 (2)
+#define SF_INDEX_MAX    SCHAR_MAX
+#define SF_QUANT_OFFSET 0.4783662 // for scale fac
+#define SF_THRESH_NEG  0.92044821 // round -1.5 dB
+#define SF_THRESH_POS  1.09460356 // round +1.5 dB
+#define SFB_QUANT_OFFSET 0.496094 // 13 - 29^(3/4)
+#define SFB_QUANT_PERCEPT_OPT   2 // psych. quant.
+#define QUANT_MAX  85 + (170 >> SFB_QUANT_PERCEPT_OPT)
+
+// class for BL USAC quantization
+class SfbQuantizer
+{
+private:
+
+  // member variables
+  unsigned* m_coeffMagn; // temp memory
+#if EC_TRELLIS_OPT_CODING
+  uint8_t*  m_coeffTemp; // temp result
+#else
+  uint8_t   m_coeffTemp[200]; // 40 * 5 - NOTE: increase this when maximum grpLength > 5
+#endif
+  double*   m_lut2ExpX4; // for 2^(X/4)
+  double*   m_lutSfNorm; // 1 / 2^(X/4)
+  double*   m_lutXExp43; // for X^(4/3)
+#if EC_TRELLIS_OPT_CODING
+  uint8_t   m_maxSize8M1; // (size/8)-1
+  uint8_t   m_numCStates; // states/SFB
+  uint8_t   m_rateIndex; // lambda mode
+  // trellis memory, max. 8 KB @ num_swb=51
+  double*   m_quantDist[52]; // quantizing distortion
+  uint8_t*  m_quantInSf[52]; // initial scale factors
+  uint16_t* m_quantRate[52]; // MDCT and SF bit count
+#endif
+
+  // helper functions
+  double    getQuantDist (const unsigned* const coeffMagn, const uint8_t scaleFactor,
+                          const uint8_t* const coeffQuant, const uint16_t numCoeffs);
+  uint8_t   quantizeMagnSfb (const unsigned* const coeffMagn, const uint8_t scaleFactor,
+                            /*mod*/uint8_t* const coeffQuant, const uint16_t numCoeffs,
+#if EC_TRELLIS_OPT_CODING
+                             EntropyCoder* const arithmCoder, const uint16_t coeffOffset,
+#endif
+                             short* const sigMaxQ = nullptr,  short* const sigNumQ = nullptr);
+#if EC_TRELLIS_OPT_CODING
+  uint32_t quantizeMagnRDOC (EntropyCoder& entropyCoder, const uint8_t optimalSf, const unsigned targetBitCount,
+                             const uint16_t coeffOffset, const unsigned* const coeffMagn,  // initial MDCT magnitudes
+                             const uint16_t numCoeffs, uint8_t* const quantCoeffs); // returns updated SFB statistics
+#endif
+public:
+
+  // constructor
+  SfbQuantizer ();
+  // destructor
+  ~SfbQuantizer ();
+  // public functions
+  unsigned* getCoeffMagnPtr ()                      const { return m_coeffMagn; }
+  double*   getSfNormTabPtr ()                      const { return m_lutSfNorm; }
+  uint8_t getScaleFacOffset (const double absValue) const { return uint8_t (SF_QUANT_OFFSET + FOUR_LOG102 * log10 (__max (1.0, absValue))); }
+#if EC_TRELLIS_OPT_CODING
+  unsigned  initQuantMemory (const unsigned maxLength, const uint8_t numSwb, const uint8_t bitRateMode, const unsigned samplingRate);
+#else
+  unsigned  initQuantMemory (const unsigned maxLength);
+#endif
+  uint8_t   quantizeSpecSfb (EntropyCoder& entropyCoder, const int32_t* const inputCoeffs, const uint8_t grpLength,
+                             const uint16_t* const grpOffsets, uint32_t* const grpStats,  // quant./coding statistics
+                             const unsigned sfb, const uint8_t sfIndex, const uint8_t sfIndexPred = UCHAR_MAX,
+                             uint8_t* const quantCoeffs = nullptr); // returns index of the RD optimized scale factor
+#if EC_TRELLIS_OPT_CODING
+  unsigned quantizeSpecRDOC (EntropyCoder& entropyCoder, uint8_t* const optimalSf, const unsigned targetBitCount,
+                             const uint16_t* const grpOffsets, uint32_t* const grpStats,  // quant./coding statistics
+                             const unsigned numSfb, uint8_t* const quantCoeffs); // returns RD optimization bit count
+#endif
+}; // SfbQuantizer
+
+#endif // _QUANTIZATION_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/specAnalysis.h ###
+/* specAnalysis.h - header file for class providing spectral analysis of MCLT signals
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _SPEC_ANALYSIS_H_
+#define _SPEC_ANALYSIS_H_
+
+#include "exhaleLibPch.h"
+#include "linearPrediction.h"
+
+// constants, experimental macros
+#define SA_BW_SHIFT             5
+#define SA_BW  (1 << SA_BW_SHIFT)
+#define SA_EPS               1024
+#define SA_EXACT_COMPLEX_ABS    0
+
+// spectral signal analysis class
+class SpecAnalyzer
+{
+private:
+
+  // member variables
+  uint16_t m_bandwidthOff[USAC_MAX_NUM_CHANNELS];
+  uint8_t  m_magnCorrPrev[USAC_MAX_NUM_CHANNELS];
+  uint32_t* m_magnSpectra[USAC_MAX_NUM_CHANNELS];
+  uint32_t m_meanAbsValue[USAC_MAX_NUM_CHANNELS][1024 >> SA_BW_SHIFT];
+  uint16_t m_numAnaBands [USAC_MAX_NUM_CHANNELS];
+  short    m_parCorCoeffs[USAC_MAX_NUM_CHANNELS][MAX_PREDICTION_ORDER];
+  uint32_t m_specAnaStats[USAC_MAX_NUM_CHANNELS];
+  uint32_t m_tnsPredGains[USAC_MAX_NUM_CHANNELS];
+  LinearPredictor* m_tnsPredictor;
+
+public:
+
+  // constructor
+  SpecAnalyzer ();
+  // destructor
+  ~SpecAnalyzer () { for (unsigned ch = 0; ch < USAC_MAX_NUM_CHANNELS; ch++) MFREE (m_magnSpectra[ch]); }
+  // public functions
+  unsigned getLinPredCoeffs (short parCorCoeffs[MAX_PREDICTION_ORDER], const unsigned channelIndex); // returns best filter order
+  unsigned getMeanAbsValues (const int32_t* const mdctSignal, const int32_t* const mdstSignal, const unsigned nSamplesInFrame,
+                             const unsigned channelIndex, const uint16_t* const bandStartOffsets, const unsigned nBands,
+                             uint32_t* const meanBandValues);
+  void getSpecAnalysisStats (uint32_t avgSpecAnaStats[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  void getSpectralBandwidth (uint16_t bandwidthOffset[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  unsigned initSigAnaMemory (LinearPredictor* const linPredictor, const unsigned nChannels, const unsigned maxTransfLength);
+  unsigned optimizeGrouping (const unsigned channelIndex, const unsigned preferredBandwidth, const unsigned preferredGrouping);
+  unsigned spectralAnalysis (const int32_t* const mdctSignals[USAC_MAX_NUM_CHANNELS],
+                             const int32_t* const mdstSignals[USAC_MAX_NUM_CHANNELS],
+                             const unsigned nChannels, const unsigned nSamplesInFrame, const unsigned samplingRate,
+                             const unsigned lfeChannelIndex = USAC_MAX_NUM_CHANNELS, const unsigned scale = 2);
+  int16_t stereoSigAnalysis (const int32_t* const mdctSignal1, const int32_t* const mdctSignal2,
+                             const int32_t* const mdstSignal1, const int32_t* const mdstSignal2,
+                             const unsigned nSamplesMax, const unsigned nSamplesInFrame, const bool shortTransforms,
+                             uint8_t* const stereoCorrValue); // per-band LR correlation
+}; // SpecAnalyzer
+
+#endif // _SPEC_ANALYSIS_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/bitAllocation.h ###
+/* bitAllocation.h - header file for class needed for psychoacoustic bit-allocation
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _BIT_ALLOCATION_H_
+#define _BIT_ALLOCATION_H_
+
+#include "exhaleLibPch.h"
+#include "linearPrediction.h"
+
+// constants, experimental macros
+#define BA_EPS                  1
+#define BA_MORE_CBR             0 // 1: force more constant bit-rate (CBR, experimental!)
+
+// class for audio bit-allocation
+class BitAllocator
+{
+private:
+
+  // member variables
+  uint32_t m_avgStepSize[USAC_MAX_NUM_CHANNELS];
+  uint8_t  m_avgSpecFlat[USAC_MAX_NUM_CHANNELS];
+  uint8_t  m_avgTempFlat[USAC_MAX_NUM_CHANNELS];
+  uint8_t  m_rateIndex; // preset
+  uint8_t* m_tempSfbValue;
+  LinearPredictor* m_tnsPredictor;
+
+public:
+
+  // constructor
+  BitAllocator ();
+  // destructor
+  ~BitAllocator () { MFREE (m_tempSfbValue); }
+  // public functions
+  void getChAverageSpecFlat (uint8_t meanSpecFlatInCh[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  void getChAverageTempFlat (uint8_t meanTempFlatInCh[USAC_MAX_NUM_CHANNELS], const unsigned nChannels);
+  uint16_t   getRateCtrlFac (const int32_t rateRatio, const unsigned samplingRate, const uint32_t specFlatness,
+                             const bool prevEightShorts = false);
+  uint8_t       getScaleFac (const uint32_t sfbStepSize, const int32_t* const sfbSignal, const uint8_t sfbWidth,
+                             const uint32_t sfbRmsValue);
+  unsigned initAllocMemory  (LinearPredictor* const linPredictor, const uint8_t numSwb, const uint8_t bitRateMode);
+  unsigned initSfbStepSizes (const SfbGroupData* const groupData[USAC_MAX_NUM_CHANNELS], const uint8_t numSwbShort,
+                             const uint32_t specAnaStats[USAC_MAX_NUM_CHANNELS],
+                             const uint32_t tempAnaStats[USAC_MAX_NUM_CHANNELS],
+                             const unsigned nChannels, const unsigned samplingRate, uint32_t* const sfbStepSizes,
+                             const unsigned lfeChannelIndex, const unsigned ad = 0u, const bool tnsDisabled = false);
+  unsigned imprSfbStepSizes (const SfbGroupData* const groupData[USAC_MAX_NUM_CHANNELS], const uint8_t numSwbShort,
+                             const int32_t* const mdctSpec[USAC_MAX_NUM_CHANNELS], const unsigned nSamplesInFrame,
+                             const unsigned nChannels, const unsigned samplingRate, uint32_t* const sfbStepSizes,
+                             const unsigned firstChannelIndex, const uint8_t* const sfm, const bool commonWindow,
+                             const uint8_t* const sfbStereoData = nullptr, const uint8_t stereoConfig = 0);
+}; // BitAllocator
+
+#endif // _BIT_ALLOCATION_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/entropyCoding.h ###
+/* entropyCoding.h - header file for class with lossless entropy coding capability
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _ENTROPY_CODING_H_
+#define _ENTROPY_CODING_H_
+
+#include "exhaleLibPch.h"
+
+// constants, experimental macro
+#define ARITH_ESCAPE          16
+#define ARITH_SIZE           742
+#define INDEX_OFFSET          60
+#define INDEX_SIZE           121
+#define EC_TRELLIS_OPT_CODING  1
+
+// lossless entropy coding class
+class EntropyCoder
+{
+private:
+
+  // member variables
+  uint8_t* m_qcCurr;         // curr. window's quantized context q[1]
+  uint8_t* m_qcPrev;         // prev. window's quantized context q[0]
+
+  uint16_t m_acBits;         // bits_to_follow in arith_encode, 0..31
+  uint16_t m_acHigh;         // high in arith_encode as in Annex B.25
+  uint16_t m_acLow;          // low in arith_encode, as in Annex B.25
+  uint16_t m_acSize;         // context window size (N/4 in Scl. 7.4)
+  uint32_t m_csCurr;         // context state, see initWindowCoding()
+  unsigned m_maxTupleLength; // maximum half-transform length (<4096)
+  uint8_t  m_shiftTrafoCurr; // used to derive N in Scl. 7.4 and B.25
+  uint8_t  m_shiftTrafoPrev; // used to derive previous_N in Scl. 7.4
+
+  // helper functions
+  unsigned arithCodeSymbol (const uint16_t symbol, const uint16_t* table, OutputStream* const stream = nullptr);
+  unsigned arithGetContext (const unsigned ctx, const unsigned idx);
+  unsigned arithMapContext (const bool arithResetFlag);
+#if EC_TRELLIS_OPT_CODING
+  void     arithSetContext (const unsigned newCtxState, const uint16_t sigEnd);
+#endif
+
+public:
+
+  // constructor
+  EntropyCoder ();
+  // destructor
+  ~EntropyCoder ();
+  // public functions
+  unsigned arithCodeSigMagn (const uint8_t* const magn, const uint16_t sigOffset, const uint16_t sigLength,
+                             const bool arithFinish = false, OutputStream* const stream = nullptr);
+#if EC_TRELLIS_OPT_CODING
+  unsigned arithCodeSigTest (const uint8_t* const magn, const uint16_t sigOffset, const uint16_t sigLength); // +-m_acBits
+  unsigned arithCodeTupTest (const uint8_t* const magn, const uint16_t sigOffset); // for sigLength of 2 - also +-m_acBits
+#endif
+  unsigned arithGetCodState () const                     { return ((unsigned) m_acHigh << 16) | (unsigned) m_acLow; }
+  unsigned arithGetCtxState () const                     { return m_csCurr; }
+  unsigned arithGetResetBit (const uint8_t* const magn, const uint16_t sigOffset, const uint16_t sigLength);
+  char*    arithGetTuplePtr () const                     { return (char*) m_qcCurr; }
+  void     arithResetMemory () { memset (m_qcPrev, 0, (m_maxTupleLength + 1) * sizeof (uint8_t)); m_acBits = 0; }
+  void     arithSetCodState (const unsigned newCodState) { m_acHigh = newCodState >> 16; m_acLow = newCodState & USHRT_MAX; }
+#if EC_TRELLIS_OPT_CODING
+  void     arithSetCtxState (const unsigned newCtxState, const uint16_t sigOffset = 0) { arithSetContext (newCtxState, sigOffset >> 1); }
+#else
+  void     arithSetCtxState (const unsigned newCtxState) { m_csCurr = newCtxState; }
+#endif
+  unsigned indexGetBitCount (const int scaleFactorDelta) const; // for Huffman coding
+  unsigned indexGetHuffCode (const int scaleFactorDelta) const;
+
+  unsigned initCodingMemory (const unsigned maxTransfLength);
+  unsigned initWindowCoding (const bool forceArithReset, const uint8_t winLenShift = 0); // shift: 3 for short, 0 for long
+
+  bool     getIsShortWindow () const                     { return (m_shiftTrafoCurr == 3); } // last frame was eight-short
+  void     setShortWinShift (const uint8_t winLenShift)  { m_shiftTrafoCurr = winLenShift; } // like in initWindowCoding()
+}; // EntropyCoder
+
+#endif // _ENTROPY_CODING_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/lappedTransform.h ###
+/* lappedTransform.h - header file for class providing time-frequency transformation
+ * written by C. R. Helmrich, last modified in 2019 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _LAPPED_TRANSFORM_H_
+#define _LAPPED_TRANSFORM_H_
+
+#include "exhaleLibPch.h"
+
+// constants, experimental macros
+#define LUT_OFFSET      (1 << 30)
+#define LUT_SHIFT              31
+#define WIN_OFFSET      (1 << 24)
+#define WIN_SHIFT              25
+
+// time-frequency transform class
+class LappedTransform
+{
+private:
+
+  // member variables
+  int32_t* m_dctRotCosL;
+  int32_t* m_dctRotCosS;
+  int32_t* m_dctRotSinL;
+  int32_t* m_dctRotSinS;
+  int32_t* m_fftHalfCos;
+  int32_t* m_fftHalfSin;
+  short*   m_fftPermutL;
+  short*   m_fftPermutS;
+  int32_t* m_tempIntBuf;     // pointer to temporary helper buffer
+  int32_t* m_timeWindowL[2]; // pointer to two long window halves
+  int32_t* m_timeWindowS[2]; // pointer to two short window halves
+  short    m_transfLengthL;
+  short    m_transfLengthS;
+
+  // helper functions
+  void applyHalfSizeFFT (int32_t* const iR/*eal*/, int32_t* const iI/*mag*/, const bool shortTransform);
+  void windowAndFoldInL (const int32_t* inputL, const bool shortTransform, const bool kbdWindowL, const bool lowOverlapL,
+                         const bool mdstKernel, int32_t* const output);
+  void windowAndFoldInR (const int32_t* inputR, const bool shortTransform, const bool kbdWindowR, const bool lowOverlapR,
+                         const bool mdstKernel, int32_t* const output);
+
+public:
+
+  // constructor
+  LappedTransform ();
+  // destructor
+  ~LappedTransform ();
+  // public functions
+  unsigned applyNegDCT4  (int32_t* const signal,  const bool shortTransform);
+  unsigned applyMCLT     (const int32_t* timeSig, const bool eightTransforms, bool kbdWindowL, const bool kbdWindowR,
+                          const bool lowOverlapL, const bool lowOverlapR, int32_t* const outMdct, int32_t* const outMdst);
+  unsigned initConstants (int32_t* const tempIntBuf, int32_t* const timeWindowL[2], int32_t* const timeWindowS[2],
+                          const unsigned maxTransfLength);
+}; // LappedTransform
+
+#endif // _LAPPED_TRANSFORM_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/stereoProcessing.h ###
+/* stereoProcessing.h - header file for class providing M/S stereo coding functionality
+ * written by C. R. Helmrich, last modified in 2022 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2021 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _STEREO_PROCESSING_H_
+#define _STEREO_PROCESSING_H_
+
+#include "exhaleLibPch.h"
+#include "specAnalysis.h" // for SA_BW... constants
+#include <random>
+
+// constants, experimental macros
+#define SP_0_DOT_1_16BIT     6554
+#define SP_EPS                  1
+#define SP_DIV (1.0 / 4294967296.0)
+
+// joint-channel processing class
+class StereoProcessor
+{
+private:
+
+  // member variables
+  int32_t m_originBandMdct1[320]; // i.e. 64 * 5 - NOTE: increase this when maximum grpLength > 5
+  int32_t m_originBandMdct2[320];
+  int32_t m_originBandMdst1[320];
+  int32_t m_originBandMdst2[320];
+  std::minstd_rand m_randomInt32;
+  int32_t m_randomIntMemRe[1+MAX_NUM_SWB_LONG/2];
+  int32_t m_randomIntMemIm[1+MAX_NUM_SWB_LONG/2];
+  uint8_t m_stereoCorrValue[1024 >> SA_BW_SHIFT]; // one value for every 32 spectral coefficients
+
+public:
+
+  // constructor
+  StereoProcessor ();
+  // destructor
+  ~StereoProcessor () { }
+  // public functions
+  unsigned applyPredJointStereo (int32_t* const mdctSpectrum1, int32_t* const mdctSpectrum2,
+                                 int32_t* const mdstSpectrum1, int32_t* const mdstSpectrum2,
+                                 SfbGroupData&  groupingData1, SfbGroupData&  groupingData2,
+                                 const TnsData&   filterData1, const TnsData&   filterData2,
+                                 const uint8_t    numSwbFrame, uint8_t* const sfbStereoData,
+                                 const uint8_t    bitRateMode, const bool    useFullFrameMS,
+                                 const bool    reversePredDir, const uint8_t realOnlyOffset,
+                                 uint32_t* const sfbStepSize1, uint32_t* const sfbStepSize2);
+}; // StereoProcessor
+
+#endif // _STEREO_PROCESSING_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/exhaleEnc.h ###
+/* exhaleEnc.h - header file for class providing Extended HE-AAC encoding capability
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _EXHALE_ENC_H_
+#define _EXHALE_ENC_H_
+
+#include "exhaleDecl.h"
+#include "exhaleLibPch.h"
+#include "bitAllocation.h"
+#include "bitStreamWriter.h"
+#include "entropyCoding.h"
+#include "lappedTransform.h"
+#include "linearPrediction.h"
+#include "quantization.h"
+#include "specAnalysis.h"
+#include "specGapFilling.h"
+#include "stereoProcessing.h"
+#include "tempAnalysis.h"
+
+// constant and experimental macro
+#define WIN_SCALE double (1 << 23)
+#define EE_MORE_MSE              0 // 1-9: MSE optimized encoding with TNS disabled starting at bit-rate mode 1-9
+
+// channelConfigurationIndex setup
+typedef enum USAC_CCI : signed char
+{
+  CCI_UNDEF = -1,
+  CCI_CONF  = 0,  // channel-to-speaker mapping defined in UsacChannelConfig() (not to be used here!)
+  CCI_1_CH  = 1,  // 1.0: front-center
+  CCI_2_CH  = 2,  // 2.0: front-left, front-right
+  CCI_3_CH  = 3,  // 3.0: front-center, front-left, front-right
+  CCI_4_CH  = 4,  // 4.0: front-center, front-left, front-right, back-center
+  CCI_5_CH  = 5,  // 5.0: front-center, front-left, front-right, back-left, back-right
+  CCI_6_CH  = 6,  // 5.1: front-center, front-left, front-right, back-left, back-right, LFE
+  CCI_8_CH  = 7,  // 7.1: front-center, front-left, front-right, side-left, side-right, back-left, back-right, LFE
+  CCI_2_CHM = 8,  // 2.0, dual-mono: channel1, channel2
+  CCI_3_CHR = 9,  // 3.0, R-rotated: front-left, front-right, back-center
+  CCI_4_CHR = 10, // 4.0, R-rotated: front-left, front-right, back-left, back-right
+  CCI_7_CH  = 11, // 6.1: front-center, front-left, front-right, back-left, back-right, back-center, LFE
+  CCI_8_CHS = 12  // 7.1, surround: front-center, front-L, front-R, surround-L, surround-R, back-L, back-R, LFE
+} USAC_CCI;
+
+// coreCoderFrameLength definition
+typedef enum USAC_CCFL : short
+{
+  CCFL_UNDEF = -1,
+#if !RESTRICT_TO_AAC
+  CCFL_768   = 768, // LD
+#endif
+  CCFL_1024  = 1024 // LC
+} USAC_CCFL;
+
+// overall BL USAC encoding class
+class ExhaleEncoder : public ExhaleEncAPI
+{
+private:
+
+  // member variables
+  uint16_t        m_bandwidCurr[USAC_MAX_NUM_CHANNELS];
+  uint16_t        m_bandwidPrev[USAC_MAX_NUM_CHANNELS];
+  BitAllocator    m_bitAllocator; // for scale factor init
+  uint8_t         m_bitRateMode;
+  USAC_CCI        m_channelConf;
+  int32_t*        m_coreSignals[USAC_MAX_NUM_CHANNELS];
+  CoreCoderData*  m_elementData[USAC_MAX_NUM_ELEMENTS];
+  EntropyCoder    m_entropyCoder[USAC_MAX_NUM_CHANNELS];
+  uint32_t        m_frameCount;
+  USAC_CCFL       m_frameLength;
+  int8_t          m_frequencyIdx;
+  bool            m_indepFlag; // usacIndependencyFlag bit
+  uint32_t        m_indepPeriod;
+  LinearPredictor m_linPredictor; // for pre-roll est, TNS
+  uint8_t*        m_mdctQuantMag[USAC_MAX_NUM_CHANNELS];
+  int32_t*        m_mdctSignals[USAC_MAX_NUM_CHANNELS];
+  int32_t*        m_mdstSignals[USAC_MAX_NUM_CHANNELS];
+  uint8_t         m_meanSpecPrev[USAC_MAX_NUM_CHANNELS]; // for
+  uint8_t         m_meanTempPrev[USAC_MAX_NUM_CHANNELS]; // SBR
+#if !RESTRICT_TO_AAC
+  bool            m_noiseFilling[USAC_MAX_NUM_ELEMENTS];
+#endif
+  bool            m_nonMpegExt;
+  uint8_t         m_numElements;
+  uint8_t         m_numSwbLong;
+  uint8_t         m_numSwbShort;
+  unsigned char*  m_outAuData;
+  BitStreamWriter m_outStream; // for access unit creation
+  int32_t*        m_pcm24Data;
+  uint8_t         m_perCorrHCurr[USAC_MAX_NUM_ELEMENTS];
+  uint8_t         m_perCorrLCurr[USAC_MAX_NUM_ELEMENTS];
+  uint8_t         m_priLength;
+  uint32_t        m_rateFactor; // RC
+  SfbGroupData*   m_scaleFacData[USAC_MAX_NUM_CHANNELS];
+  uint16_t        m_sfbLoudMem[2][26][32]; // loudness mem
+  SfbQuantizer    m_sfbQuantizer; // powerlaw quantization
+  uint8_t         m_shiftValSBR; // SBR ratio for shifting
+  SpecAnalyzer    m_specAnalyzer; // for spectral analysis
+  uint32_t        m_specAnaCurr[USAC_MAX_NUM_CHANNELS];
+  uint8_t         m_specFlatPrev[USAC_MAX_NUM_CHANNELS];
+#if !RESTRICT_TO_AAC
+  SpecGapFiller   m_specGapFiller;// for noise/gap filling
+#endif
+  StereoProcessor m_stereoCoder;  // for M/S stereo coding
+  uint8_t         m_swbTableIdx;
+  TempAnalyzer    m_tempAnalyzer; // for temporal analysis
+  uint32_t        m_tempAnaCurr[USAC_MAX_NUM_CHANNELS];
+  uint32_t        m_tempAnaNext[USAC_MAX_NUM_CHANNELS];
+  uint8_t         m_tempFlatPrev[USAC_MAX_NUM_CHANNELS];
+  int32_t*        m_tempIntBuf;  // temporary int32 buffer
+  int32_t*        m_timeSignals[USAC_MAX_NUM_CHANNELS];
+#if !RESTRICT_TO_AAC
+  uint8_t         m_timeWarpTCX[USAC_MAX_NUM_ELEMENTS]; // for TW, TCX
+#endif
+  int32_t*        m_timeWindowL[2];  // long window halves
+  int32_t*        m_timeWindowS[2]; // short window halves
+  int16_t         m_tranLocCurr[USAC_MAX_NUM_CHANNELS];
+  int16_t         m_tranLocNext[USAC_MAX_NUM_CHANNELS];
+  LappedTransform m_transform; // time-frequency transform
+
+  // helper functions
+  unsigned applyTnsToWinGroup (SfbGroupData& grpData, const uint8_t grpIndex, const uint8_t maxSfb, TnsData& tnsData,
+                               const unsigned channelIndex, const unsigned n, const bool realOnlyCalc);
+  unsigned eightShortGrouping (SfbGroupData& grpData, uint16_t* const grpOffsets,
+                               int32_t* const mdctSignal, int32_t* const mdstSignal);
+  unsigned getOptParCorCoeffs (const SfbGroupData& grpData, const uint8_t maxSfb, TnsData& tnsData,
+                               const unsigned channelIndex, const uint8_t firstGroupIndexToTest = 0);
+  uint32_t getThr             (const unsigned channelIndex, const unsigned sfbIndex);
+  unsigned psychBitAllocation ();
+  unsigned quantizationCoding ();
+  unsigned spectralProcessing ();
+  unsigned temporalProcessing ();
+
+public:
+
+  // constructor
+  ExhaleEncoder (int32_t* const inputPcmData,       unsigned char* const outputAuData,
+                 const unsigned sampleRate = 44100, const unsigned numChannels = 2,
+                 const unsigned frameLength = 1024, const unsigned indepPeriod = 45,
+                 const unsigned varBitRateMode = 3
+#if !RESTRICT_TO_AAC
+               , const bool useNoiseFilling = true, const bool useEcodisExt = false
+#endif
+    );
+  // destructor
+  virtual ~ExhaleEncoder ();
+  // public functions
+  unsigned encodeLookahead ();
+  unsigned encodeFrame ();
+  unsigned initEncoder (unsigned char* const audioConfigBuffer, uint32_t* const audioConfigBytes = nullptr);
+
+}; // ExhaleEncoder
+
+#endif // _EXHALE_ENC_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/specGapFilling.h ###
+/* specGapFilling.h - header file for class with spectral gap filling coding methods
+ * written by C. R. Helmrich, last modified in 2020 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _SPEC_GAP_FILLING_H_
+#define _SPEC_GAP_FILLING_H_
+
+#include "exhaleLibPch.h"
+#include "quantization.h"
+
+// constants, experimental macro
+#define SGF_LIMIT 2*INDEX_OFFSET
+#define SGF_OPT_SHORT_WIN_CALC 1
+#define SGF_SF_PEAK_SMOOTHING  1
+
+// MDCT-domain gap filling class
+class SpecGapFiller
+{
+private:
+
+  // member variables
+  uint16_t  m_1stGapFillSfb;
+  int16_t   m_1stNonZeroSfb[NUM_WINDOW_GROUPS];
+
+public:
+
+  // constructor
+  SpecGapFiller ();
+  // destructor
+  ~SpecGapFiller () { }
+  // public functions
+  uint16_t  getFirstGapFillSfb () const { return m_1stGapFillSfb; }
+  uint8_t   getSpecGapFillParams (const SfbQuantizer& sfbQuantizer, const uint8_t* const quantMagn,
+                                  const uint8_t numSwbShort, SfbGroupData& grpData /*modified*/,
+                                  const unsigned nSamplesInFrame, const unsigned samplingRate,
+                                  const unsigned sampRateBitSave, const uint8_t specFlat);
+}; // SpecGapFiller
+
+#endif // _SPEC_GAP_FILLING_H_
+
+
+
+### File: /Users/user2/Desktop/exhale-v1.2.1.2/src/lib/exhaleLibPch.h ###
+/* exhaleLibPch.h - pre-compiled header file for classes of exhaleLib coding library
+ * written by C. R. Helmrich, last modified in 2025 - see License.htm for legal notices
+ *
+ * The copyright in this software is being made available under the exhale Copyright License
+ * and comes with ABSOLUTELY NO WARRANTY. This software may be subject to other third-
+ * party rights, including patent rights. No such rights are granted under this License.
+ *
+ * Copyright (c) 2018-2025 Christian R. Helmrich, project ecodis. All rights reserved.
+ */
+
+#ifndef _EXHALE_LIB_PCH_H_
+#define _EXHALE_LIB_PCH_H_
+
+#include <limits.h> // for .._MAX, .._MIN
+#include <math.h>   // for pow, sin, sqrt
+#include <stdint.h> // for (u)int8_t, (u)int16_t, (u)int32_t, (u)int64_t
+#include <stdlib.h> // for abs, calloc, malloc, free, (__)max, (__)min
+#include <string.h> // for memcpy, memset
+#include <vector>   // for std::vector <>
+
+// constants, experimental macros
+#define AAC_NUM_SAMPLE_RATES   13
+#define MAX_PREDICTION_ORDER    4
+#define MAX_NUM_SWB_LFE         6
+#define MAX_NUM_SWB_LONG       51
+#define MAX_NUM_SWB_SHORT      15
+#define MIN_NUM_SWB_SHORT      12
+#define NUM_WINDOW_GROUPS       4 // must be between 4 and 8
+#define USAC_MAX_NUM_CHANNELS   8
+#define USAC_MAX_NUM_ELCONFIGS 13
+#define USAC_MAX_NUM_ELEMENTS   5
+#define USAC_NUM_FREQ_TABLES    6
+#define USAC_NUM_SAMPLE_RATES  (2 * AAC_NUM_SAMPLE_RATES)
+
+#define ENABLE_INTERTES         0 // inter-sample TES in SBR
+
+#if ENABLE_INTERTES
+# define GAMMA                  1 // 2?
+#endif
+
+#define RESTRICT_TO_AAC         0 // allow only AAC tool-set
+
+#if RESTRICT_TO_AAC
+# define LFE_MAX               12
+#else
+# define LFE_MAX               24
+#endif
+
+#ifndef __max
+# define __max(a, b)           ((a) > (b) ? (a) : (b))
+#endif
+#ifndef __min
+# define __min(a, b)           ((a) < (b) ? (a) : (b))
+#endif
+#ifndef CLIP_PM
+# define CLIP_PM(x, clip)      (__max (-clip, __min (+clip, x)))
+#endif
+#ifndef CLIP_UCHAR
+# define CLIP_UCHAR(x)         (__max (0, __min (UCHAR_MAX, x)))
+#endif
+
+#ifndef MFREE
+# define MFREE(x)              if (x != nullptr) { free ((void*) x); x = nullptr; }
+#endif
+
+// usacElementType[el] definition
+typedef enum ELEM_TYPE : int8_t
+{
+  ID_EL_UNDEF = -1,
+  ID_USAC_SCE = 0, // single-channel element
+  ID_USAC_CPE = 1, // channel-pair element
+  ID_USAC_LFE = 2, // low-frequency effects element with ONLY_LONG_SEQUENCE, no TNS
+  ID_USAC_EXT = 3  // extension element, not used
+} ELEM_TYPE;
+
+// window_sequence defines for ICS
+typedef enum USAC_WSEQ : uint8_t
+{
+  ONLY_LONG   = 0, // one symmetric long window  .´`.
+  LONG_START  = 1, // asymmet. long-start window .´|_
+  EIGHT_SHORT = 2, // 8 symmetric short windows  _MM_
+  LONG_STOP   = 3, // asymmet. long-stop window  _|`.
+  STOP_START  = 4  // symmet. stop-start window  _||_
+} USAC_WSEQ;
+
+// window_shape definition for ICS
+typedef enum USAC_WSHP : uint8_t
+{
+  WINDOW_SINE = 0, // half-sine window = sin(pi*((0:L-1)'+0.5)/L)
+  WINDOW_KBD  = 1  // Kaiser-Bessel derived (KBD) window by Dolby
+} USAC_WSHP;
+
+// ics_info(): channel data struct
+struct IcsInfo
+{
+  uint8_t   maxSfb;         // max_sfb(1)
+  uint8_t   windowGrouping; // scale_factor_grouping (index)
+  USAC_WSEQ windowSequence; // window_sequence
+  USAC_WSHP windowShape;    // window_shape
+};
+
+// tns_data(): channel data struct
+struct TnsData
+{
+  int8_t    coeff[3][MAX_PREDICTION_ORDER]; // f
+  int16_t   coeffParCor[3][MAX_PREDICTION_ORDER];
+  bool      coeffResLow[3];  // 1: coef_res[w]=0
+  bool      filterDownward[3]; // direction[f]=1
+  uint8_t   filterLength[3]; // filter length[f]
+  uint8_t   filterOrder[3];   // filter order[f]
+  uint8_t   firstTnsWindow; // filtered window w
+  uint8_t   numFilters[3]; // n_filt[w]={0 or 1}
+};
+
+// scale factor group. data struct
+struct SfbGroupData
+{
+  uint16_t  numWindowGroups; // 1 | NUM_WINDOW_GROUPS, num_window_groups
+  uint16_t  sfbOffsets[1+MAX_NUM_SWB_SHORT * NUM_WINDOW_GROUPS];
+  uint32_t  sfbRmsValues[MAX_NUM_SWB_SHORT * NUM_WINDOW_GROUPS];
+  uint8_t   scaleFactors[MAX_NUM_SWB_SHORT * NUM_WINDOW_GROUPS]; // sf[]
+  uint8_t   sfbsPerGroup; // max_sfb(1) duplicate needed by BitAllocator
+  uint8_t   windowGroupLength[NUM_WINDOW_GROUPS]; // window_group_length
+};
+
+// UsacCoreCoderData() data struct
+struct CoreCoderData
+{
+  bool          commonMaxSfb;  // common_max_sfb in StereoCoreToolInfo()
+  bool          commonTnsData;     // common_tns in StereoCoreToolInfo()
+  bool          commonWindow;   // common_window in StereoCoreToolInfo()
+  ELEM_TYPE     elementType;   // usacElementType in UsacDecoderConfig()
+  SfbGroupData  groupingData[2];  // window grouping and SFB offset data
+  IcsInfo       icsInfoCurr[2];   // current ics_info() for each channel
+  IcsInfo       icsInfoPrev[2];  // previous ics_info() for each channel
+#if !RESTRICT_TO_AAC
+  uint8_t       specFillData[2];  // noise filling data for each channel
+#endif
+  uint8_t       stereoConfig;  // cplx_pred_data() config: pred_dir etc.
+  uint8_t       stereoDataCurr[MAX_NUM_SWB_SHORT * NUM_WINDOW_GROUPS];
+  uint8_t       stereoDataPrev[MAX_NUM_SWB_LONG + 1]; // .._q_prev_frame
+  uint8_t       stereoMode;   // ms_mask_present in StereoCoreToolInfo()
+  bool          tnsActive;    // tns_active flag in StereoCoreToolInfo()
+  TnsData       tnsData[2];       // current tns_data() for each channel
+  bool          tnsOnLeftRight;     // tns_on_lr in StereoCoreToolInfo()
+};
+
+// bit-stream encoding data struct
+struct OutputStream
+{
+  uint8_t heldBitChunk; // bits not yet flushed to buffer
+  uint8_t heldBitCount; // number of bits not yet flushed
+  std::vector <uint8_t> stream; // FIFO bit-stream buffer
+  // constructor
+  OutputStream () { reset (3072); }
+  // destructor
+  ~OutputStream() { stream.clear (); }
+  // public functions
+  void reset (uint16_t c = 0); // clear, set capacity
+  void write (const uint32_t bitChunk, const uint8_t bitCount);
+}; // OutputStream
+
+// fast calculation of sqrt (256 - x): (4 + eightTimesSqrt256Minus[x]) >> 3, for 0 <= x <= 255
+const uint8_t eightTimesSqrt256Minus[256] = {
+  128, 128, 127, 127, 127, 127, 126, 126, 126, 126, 125, 125, 125, 125, 124, 124, 124, 124, 123, 123, 123, 123, 122, 122, 122, 122,
+  121, 121, 121, 121, 120, 120, 120, 119, 119, 119, 119, 118, 118, 118, 118, 117, 117, 117, 116, 116, 116, 116, 115, 115, 115, 115,
+  114, 114, 114, 113, 113, 113, 113, 112, 112, 112, 111, 111, 111, 111, 110, 110, 110, 109, 109, 109, 109, 108, 108, 108, 107, 107,
+  107, 106, 106, 106, 106, 105, 105, 105, 104, 104, 104, 103, 103, 103, 102, 102, 102, 102, 101, 101, 101, 100, 100, 100,  99,  99,
+   99,  98,  98,  98,  97,  97,  97,  96,  96,  96,  95,  95,  95,  94,  94,  94,  93,  93,  93,  92,  92,  92,  91,  91,  91,  90,
+   90,  89,  89,  89,  88,  88,  88,  87,  87,  87,  86,  86,  85,  85,  85,  84,  84,  84,  83,  83,  82,  82,  82,  81,  81,  80,
+   80,  80,  79,  79,  78,  78,  78,  77,  77,  76,  76,  75,  75,  75,  74,  74,  73,  73,  72,  72,  72,  71,  71,  70,  70,  69,
+   69,  68,  68,  67,  67,  66,  66,  65,  65,  64,  64,  63,  63,  62,  62,  61,  61,  60,  60,  59,  59,  58,  58,  57,  57,  56,
+   55,  55,  54,  54,  53,  52,  52,  51,  51,  50,  49,  49,  48,  47,  47,  46,  45,  45,  44,  43,  42,  42,  41,  40,  39,  38,
+   38,  37,  36,  35,  34,  33,  32,  31,  30,  29,  28,  27,  25,  24,  23,  21,  20,  18,  16,  14,  11,   8
+};
+
+// ISO/IEC 23003-3:2012, Table 68
+static const uint8_t  elementCountConfig[USAC_MAX_NUM_ELCONFIGS] = {0, 1, 1, 2, 3, 3, 4, 5, 2, 2, 2, 5, 5};
+
+static const ELEM_TYPE elementTypeConfig[USAC_MAX_NUM_ELCONFIGS][USAC_MAX_NUM_ELEMENTS] = {
+  {ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_CPE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_SCE, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_CPE, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_LFE, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_LFE},
+  {ID_USAC_SCE, ID_USAC_SCE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_CPE, ID_USAC_SCE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_CPE, ID_USAC_CPE, ID_EL_UNDEF, ID_EL_UNDEF, ID_EL_UNDEF},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_SCE, ID_USAC_LFE},
+  {ID_USAC_SCE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_CPE, ID_USAC_LFE}
+};
+
+// fast calculation of x / den: (x * oneTwentyEightOver[den]) >> 7, accurate for 0 <= x <= 162
+const uint8_t oneTwentyEightOver[14] = {0, 128, 64, 43, 32, 26, 22, 19, 16, 15, 13, 12, 11, 10};
+
+// public SBR related functions
+int32_t getSbrEnvelopeAndNoise (int32_t* const sbrLevels, const uint8_t specFlat5b, const uint8_t tempFlat5b, const bool lr, const bool ind,
+                                const uint8_t specFlatSte, const int32_t tmpValSte, const uint32_t frameSize, int32_t* sbrData);
+inline uint64_t square (const int64_t i) { return i * i; }
+
+// public sampling rate functions
+int8_t toSamplingFrequencyIndex (const unsigned samplingRate);
+unsigned toSamplingRate (const int8_t samplingFrequencyIndex);
+
+#endif // _EXHALE_LIB_PCH_H_
+
+
+
