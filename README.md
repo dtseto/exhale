@@ -118,3 +118,151 @@ Development
 If you are interested in contributing to exhale, please email one of
 the developers. Merge requests with fixes and/or speedups are highly
 appreciated.
+
+v1.2.1.2
+exhaleApp: avoid out-of-bounds AU writeouts, fix 5.1 WAV/MPEG channel mapping
+exhaleLib: relax max. quantized spectral magnitude restriction 1, fix MSE test code
+exhaleLib: clean quantizer + entropy coder, increase max. IPF AU size to 12 kbit/ch
+exhaleLib: fix more high-rate efficiency issues, fix mode-f stereo coding (issue 33)
+
+
+v1.2.1
+exhaleApp: always determine MPEG-4 instantaneous bit-rate across 2048 samples
+exhaleLib: added code for MSE optimized encoding (for tests, disabled by default)
+exhaleLib: code cleanup in quantization.*, increase max. IPF AU size to 10 kbit/ch
+exhaleLib: fix two rare high-rate quality issues (only affects CVBR modes above 5)
+
+
+v1.2.0
+C API correction, some code sanitizing (issue #24, merge requests !8–!11, J. Regan)
+exhaleLib: code cleanup, very minor quality improvements in CVBR modes f and 5
+exhaleLib: 5% speedup of all modes, better target rate matching in CVBR mode g
+exhaleLib: work around MinGW compilation hickup (issue #26; thanks, C. Degawa!)
+
+
+v1.1.9
+exhaleApp: write encoder name and version as «udta» tool string into MP4 header
+exhaleApp: optimize leading and trailing PCM read for gapless playback (issue #21)
+
+
+v1.1.8
+some final code cleanup, small code corrections and editorial changes for this year
+exhaleLib: minor stereo quality tuning at lower rates, optional CBR mode via macro
+
+
+v1.1.7
+minor tuning at low SBR rates, enabled SBR coding at 22050 Hz input sample rate
+exhaleApp: added expert modes for loudness leveling, custom Intra frame interval
+
+
+v1.1.6
+minor quality tuning and support for delayless operation (media time=0) with SBR
+exhaleApp: fixed very rare output file corruption after finishing encoding with SBR
+exhaleApp: fixed compilation error under Fedora (issue #20) and stdin hickup issue
+exhaleLib: fixed some quality issues in SBR modes, no changes in non-SBR modes
+
+
+v1.1.5
+exhaleApp: correct print-out of Unicode file names and paths, minor code cleanup
+exhaleLib: minor tuning of immediate playout frames, no changes to audio quality
+makefile: support for compilation of Universal 2 binaries on MacOS™ (C. Snowhill)
+
+
+v1.1.4
+exhaleApp: removed LUFS/dBFS command arguments again, code now automatic
+exhaleApp: consider the working instead of application path if no path is specified
+exhaleLib: reduce enc. delay to closest integer multiple of frame length (issue 15)
+exhaleLib: very minor tuning of transient coding especially on male speech signals
+
+
+v1.1.3
+exhaleApp: allow specifying loudness (LUFS) and peak sample (dBFS) after preset
+exhaleLib: write UsacConfig in immediate playout frames (increases compatibility)
+
+
+v1.1.2
+further improved file interoperability and seekability with some playback software
+exhaleLib: write all frames in «stss» data as immediate playout frames (issue #15)
+
+
+v1.1.1
+slightly improved audio quality with SBR, better compatibility with some decoders
+exhaleLib: increased frequency resolution of coded SBR envelopes, minor cleanup
+exhaleLib: workaround for time differential coding bug in some xHE-AAC decoders
+
+
+v1.1.0
+addition of basic SBR functionality for lower-rate coding down to 18 kbps/channel
+exhaleApp: add support for CVBR modes a—g for encoding with SBR functionality
+exhaleApp: show «ARM» in header and '-v' command on corresponding platforms
+exhaleLib: basic 2:1 SBR encoding with ccfl = 2048, minor fixes and code cleanups
+
+
+Version 1.0.8 Oct. 2020, this release
+minor quality improvements at low and high rates, some license text clarifications
+exhaleApp: slightly improved loudness calculation for low and high sampling rates
+exhaleLib: improved audio quality a bit for the lower and higher-rate CVBR modes
+License: removed references to BSD text, clarified disclaimer and contributor text
+
+
+Version 1.0.7 Aug. 2020, this release
+minor bugfixes in bit-rate control and higher-rate coding at 32 kHz sampling rate
+exhaleApp: add support for CVBR mode 0 at codec sampling rates below 44.1 kHz
+exhaleApp: write complete MP4 «stss» data for improved compatibility (issue 13)
+exhaleApp: higher accuracy of loudness estimation, better BS.1770-4 compliance
+
+
+Version 1.0.6 July 2020, this release
+bugfixes, improved quality on some transient signals, better decoder compatibility
+exhaleApp: support for Extensible WAVE format, write MP4 «prol» data (issue 10)
+exhaleApp: automatic downsampling of 48-kHz input to 32 kHz for CVBR mode 1
+exhaleLib: fine-tuning of psychoacoustic model for difficult transient input signals
+
+
+Version 1.0.5 June 2020
+slightly reduced bit-rates with lower modes, better compatibility when using stdin
+exhaleApp: support for Unicode text on Windows™, 44100 Hz with CVBR mode 1
+exhaleApp: automatic upsampling of low-sample-rate input, fixed reader (issue 9)
+exhaleLib: optimized noise filling tool for slightly lower bit-rates at CVBR mode <4
+compilation: exhaleApp.exe -> exhale.exe (issue 8), support for Arm™, C header
+
+
+Version 1.0.4 May 2020, this release
+finalized basic joint-stereo and TNS coding functionality, quality and stability fixes
+exhaleApp: support for 32000 Hz with CVBR mode 1, added '-v' version command
+exhaleLib: completed audio quality fine-tuning for very tonal and transient signals
+compilation: support for MinGW (issue 5) and cmake (via CMakeList files, issue 6)
+
+
+Version 1.0.3 Apr. 2020
+extended basic joint-stereo coding functionality for mid/high rates, minor bugfixes
+exhaleLib: band adaptive joint-stereo coding for all CVBR modes, fixed rare crash
+exhaleLib: audio quality fine-tuning, especially for very tonal and transient signals
+makefile: -std=c++11 to allow for compilation with older versions of gcc (issue 4)
+
+
+Version 1.0.2 Mar. 2020
+added basic low/mid-rate joint-stereo coding functionality, bugfixes, and speedups
+exhaleApp: support for input sampling rates of up to 48000 Hz with CVBR mode 2
+exhaleLib: frame adaptive joint-stereo preprocessing and coding (CVBR mode <5)
+exhaleLib: accelerated R/D opt. coding, stability and quality fixes (issues 2 and 3)
+
+
+Version 1.0.1 Feb. 2020
+improved low-bitrate coding efficiency and support for MPEG-D loudness metadata
+exhaleApp: increased MP4 file versatility (issue 1) and calculation of loudness info
+exhaleLib: backward compatible API extension to support writing of loudness info
+exhaleLib: extended R/D optimized coding, improved short-transform quantization
+
+
+Version 1.0.0 Jan. 2020
+compilation fixes and executable printout changes for Linux and MacOS™ platform
+exhaleApp: fixed reading of WAVE files including metadata after the «data» chunk
+exhaleLib: some tuning of transform and noise level detection for transient signals
+exhaleLib: support for export as DLL on Microsoft Windows™ (not tested, though)
+
+
+Version 1.0RC Dec. 2019
+initial release for testing with only basic channel-independent coding functionality
+only support for Microsoft Windows™ (32-bit and 64-bit) platform provided so far.
+
